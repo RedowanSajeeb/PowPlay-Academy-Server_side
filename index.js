@@ -2,7 +2,7 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 require("dotenv").config();
-const port = process.env.PORT || 5001;
+const port = process.env.PORT || 4000;
 
 // middleware//
 app.use(cors());
@@ -32,6 +32,14 @@ async function run() {
     await client.connect();
 
 const manageUsersCollection = client.db("PowerPlayUsers").collection("manageMdb");
+
+
+// users  section
+
+app.get('/users', async (req, res) => {
+        const result = await manageUsersCollection.find().toArray();
+        res.send(result);
+    })
 
 app.post("/users", async (req, res) => {
     const user = req.body
