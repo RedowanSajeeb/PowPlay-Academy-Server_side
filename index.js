@@ -2,7 +2,7 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 require("dotenv").config();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 5001;
 
 // middleware//
 app.use(cors());
@@ -35,6 +35,14 @@ const manageUsersCollection = client.db("PowerPlayUsers").collection("manageMdb"
 
 app.post("/users", async (req, res) => {
     const user = req.body
+
+     const query = {email: user.email };
+
+    const existingUser = await manageUsersCollection.findOne(query);
+     if (existingUser) {
+       return res.send({ message: ` ${user.name} already exists in the PowerPlay database` });
+     }
+
     const result = await manageUsersCollection.insertOne(user)
      res.send(result);
 });
