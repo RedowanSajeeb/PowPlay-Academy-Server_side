@@ -10,7 +10,7 @@ app.use(express.json());
 
 
 
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.USER_NAME}:${process.env.MGO_USER_PASS}@playacademy.z9xxo8h.mongodb.net/?retryWrites=true&w=majority`;
 
 
@@ -31,29 +31,48 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
-const manageUsersCollection = client.db("PowerPlayUsers").collection("manageMdb");
+    const manageUsersCollection = client
+      .db("PowerPlayUsers")
+      .collection("manageMdb");
 
+    // users  section
 
-// users  section
+    app.get("/users", async (req, res) => {
+      const result = await manageUsersCollection.find().toArray();
+      res.send(result);
+    });
 
-app.get('/users', async (req, res) => {
-        const result = await manageUsersCollection.find().toArray();
-        res.send(result);
-    })
+    app.post("/users", async (req, res) => {
+      const user = req.body;
 
-app.post("/users", async (req, res) => {
-    const user = req.body
+      const query = { email: user.email };
 
-     const query = {email: user.email };
+      const existingUser = await manageUsersCollection.findOne(query);
+      if (existingUser) {
+        return res.send({
+          message: ` ${user.name} already exists in the PowerPlay database`,
+        });
+      }
 
-    const existingUser = await manageUsersCollection.findOne(query);
-     if (existingUser) {
-       return res.send({ message: ` ${user.name} already exists in the PowerPlay database` });
-     }
+      const result = await manageUsersCollection.insertOne(user);
+      res.send(result);
+    });
 
-    const result = await manageUsersCollection.insertOne(user)
-     res.send(result);
-});
+    //Instructors
+
+    app.patch("/users/instructors/:id", async (req, res) =>{
+      const instructorsId = req.params.id;
+      const filter = { _id: new ObjectId(instructorsId) };
+
+       const updateDoc = {
+         $set: {
+           role: "instructor",
+         },
+       };
+      const result = await manageUsersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+ 
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
