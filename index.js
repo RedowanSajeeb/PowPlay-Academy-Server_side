@@ -116,48 +116,54 @@ async function run() {
 
     // Student Dashboard
 
-  //home page 2 Section// Popular Classes Section 
+    //home page 2 Section// Popular Classes Section
+    //todo Classes page
+    app.get("classes/all", async (req, res) => {
+      const result = await instructorClassCollection.find().toArray();
+      res.send(result);
+    });
 
-app.get("/users/popular-class", async (req, res) => {
-   
-    // const query = { runtime: { $lt: 15 } };
-  //  const options = {
-  //    // sort returned documents in ascending order by title (A->Z)
-  //    sort: { title: 1 },
-  //    // Include only the `title` and `imdb` fields in each returned document
-  //    projection: { _id: 0, title: 1, imdb: 1 },
-  //  };
-  
-const result = await instructorClassCollection.find().limit(6).toArray();
+    app.get("/users/popular-class", async (req, res) => {
+      // const query = { runtime: { $lt: 15 } };
+      //  const options = {
+      //    // sort returned documents in ascending order by title (A->Z)
+      //    sort: { title: 1 },
+      //    // Include only the `title` and `imdb` fields in each returned document
+      //    projection: { _id: 0, title: 1, imdb: 1 },
+      //  };
 
-  res.send(result)
+      const result = await instructorClassCollection.find().limit(6).toArray();
 
+      res.send(result);
+    });
 
+    app.get("/users/popular/instructor", async (req, res) => {
+      const options = {
+        projection: {
+          _id: 1,
+          instructorEmail: 1,
+          instructorName: 1,
+          instructorPhoneNumber: 1,
+          instructorOPhoto: 1,
+        },
+      };
 
-});
+      const result = await instructorClassCollection
+        .find({})
+        .project(options.projection)
+        .limit(6)
+        .toArray();
 
-app.get("/users/popular/instructor", async (req, res) => {
-  const options = {
-    projection: {
-      _id: 1,
-      instructorEmail: 1,
-      instructorName: 1,
-      instructorPhoneNumber: 1,
-      instructorOPhoto: 1,
-    },
-  };
-
-  const result = await instructorClassCollection
-    .find({})
-    .project(options.projection)
-    .limit(6)
-    .toArray();
-
-  res.send(result);
-});
-
+      res.send(result);
+    });
 
     //Instructors-class
+
+     app.get("/classes/all/instructors", async (req, res) => {
+       const result = await instructorClassCollection.find().toArray();
+       res.send(result);
+     });
+
 
     // GET instructor classes by email
     app.get("/users/instructor/class/:email", async (req, res) => {
