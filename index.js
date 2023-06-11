@@ -50,32 +50,46 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
-    const manageUsersCollection = client.db("PowerPlayUsers").collection("manageMdb");
-    const instructorClassCollection = client.db("InstructorPowerPlay").collection("ClassMdb");
-
+    const manageUsersCollection = client
+      .db("PowerPlayUsers")
+      .collection("manageMdb");
+    const instructorClassCollection = client
+      .db("InstructorPowerPlay")
+      .collection("ClassMdb");
 
     //JWT Authentication
- 
-app.post("/jwt", (req, res) => {
-   const user = req.body;
-   const token = jwt.sign(user, process.env.S_TOKEN_JWT, {
-     expiresIn: "1h",
-   });
-   res.send({ token });
- });
 
+    app.post("/jwt", (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.S_TOKEN_JWT, {
+        expiresIn: "1h",
+      });
+      res.send({ token });
+    });
 
-   const verifyAdmin = async (req, res, next) => {
-     const email = req.decoded.email;
-     const query = { email: email };
-     const user = await manageUsersCollection.findOne(query);
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await manageUsersCollection.findOne(query);
 
-     if (user?.role !== "admin") {
-       return res.status(403).send({ error: true, message: "FORBIDDEN user" });
-     }
-     next();
-   };
+      if (user?.role !== "admin") {
+        return res.status(403).send({ error: true, message: "FORBIDDEN user" });
+      }
+      next();
+    };
 
+    //verifyInstructors
+
+ const verifyInstructor = async (req, res, next) => {
+   const email = req.decoded.email;
+   const query = { email: email };
+   const user = await instructorClassCollection.findOne(query);
+
+   if (user?.role !== "instructor") {
+     return res.status(403).send({ error: true, message: "FORBIDDEN user" });
+   }
+   next();
+ };
 
 
     // users  section
@@ -103,34 +117,32 @@ app.post("/jwt", (req, res) => {
 
     //Instructors-class
 
-
-app.post("/users/instructor/class", async (req, res) => {
-
-    const classInfo = req.body;
-       const result = await instructorClassCollection.insertOne(classInfo);
-       res.send(result);
-
-});
-
-
-app.get("/users/instructor/:email", verifyJWT, async (req, res) => {
-  const email = req.params.email;
-
-  if (req.decoded.email !== email) {
-    res.send({ instructor: false });
-  } else {
-    try {
-      const query = { email: email };
-      const user = await manageUsersCollection.findOne(query);
-      const result = { instructor: user?.role === "instructor" };
+    app.post("/users/instructor/class", verifyJWT , verifyInstructor, async (req, res) => {
+      const classInfo = req.body;
+      const result = await instructorClassCollection.insertOne(classInfo);
       res.send(result);
-    } catch (error) {
-      res.status(500).send({ error: true, message: "Internal server error" });
-    }
-  }
-});
+    });
 
-app.patch("/users/instructors/:id", async (req, res) => {
+    app.get("/users/instructor/:email", verifyJWT,  async (req, res) => {
+      const email = req.params.email;
+
+      if (req.decoded.email !== email) {
+        res.send({ instructor: false });
+      } else {
+        try {
+          const query = { email: email };
+          const user = await manageUsersCollection.findOne(query);
+          const result = { instructor: user?.role === "instructor" };
+          res.send(result);
+        } catch (error) {
+          res
+            .status(500)
+            .send({ error: true, message: "Internal server error" });
+        }
+      }
+    });
+
+    app.patch("/users/instructors/:id", async (req, res) => {
       const instructorsId = req.params.id;
       const filter = { _id: new ObjectId(instructorsId) };
 
@@ -143,24 +155,25 @@ app.patch("/users/instructors/:id", async (req, res) => {
       res.send(result);
     });
 
-
     //admin
-app.get("/users/admin/:email", verifyJWT, async (req, res) => {
-  const email = req.params.email;
+    app.get("/users/admin/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
 
-  if (req.decoded.email !== email) {
-    res.send({ admin: false });
-  } else {
-    try {
-      const query = { email: email };
-      const user = await manageUsersCollection.findOne(query);
-      const result = { admin: user?.role === "admin" };
-      res.send(result);
-    } catch (error) {
-      res.status(500).send({ error: true, message: "Internal server error" });
-    }
-  }
-});
+      if (req.decoded.email !== email) {
+        res.send({ admin: false });
+      } else {
+        try {
+          const query = { email: email };
+          const user = await manageUsersCollection.findOne(query);
+          const result = { admin: user?.role === "admin" };
+          res.send(result);
+        } catch (error) {
+          res
+            .status(500)
+            .send({ error: true, message: "Internal server error" });
+        }
+      }
+    });
 
     app.patch("/users/admin/:id", async (req, res) => {
       const instructorsId = req.params.id;
