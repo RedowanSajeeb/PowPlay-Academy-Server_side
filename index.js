@@ -80,17 +80,16 @@ async function run() {
 
     //verifyInstructors
 
- const verifyInstructor = async (req, res, next) => {
-   const email = req.decoded.email;
-   const query = { email: email };
-   const user = await instructorClassCollection.findOne(query);
+    const verifyInstructor = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await instructorClassCollection.findOne(query);
 
-   if (user?.role !== "instructor") {
-     return res.status(403).send({ error: true, message: "FORBIDDEN user" });
-   }
-   next();
- };
-
+      if (user?.role !== "instructor") {
+        return res.status(403).send({ error: true, message: "FORBIDDEN user" });
+      }
+      next();
+    };
 
     // users  section
 
@@ -115,15 +114,69 @@ async function run() {
       res.send(result);
     });
 
+    // Student Dashboard
+
+  //home page 2 Section// Popular Classes Section 
+
+app.get("/users/popular-class", async (req, res) => {
+   
+    // const query = { runtime: { $lt: 15 } };
+  //  const options = {
+  //    // sort returned documents in ascending order by title (A->Z)
+  //    sort: { title: 1 },
+  //    // Include only the `title` and `imdb` fields in each returned document
+  //    projection: { _id: 0, title: 1, imdb: 1 },
+  //  };
+  
+const result = await instructorClassCollection.find().limit(6).toArray();
+
+  res.send(result)
+
+
+
+});
+
+app.get("/users/popular/instructor", async (req, res) => {
+  const options = {
+    projection: {
+      _id: 1,
+      instructorEmail: 1,
+      instructorName: 1,
+      instructorPhoneNumber: 1,
+      instructorOPhoto: 1,
+    },
+  };
+
+  const result = await instructorClassCollection
+    .find({})
+    .project(options.projection)
+    .limit(6)
+    .toArray();
+
+  res.send(result);
+});
+
+
     //Instructors-class
 
-    app.post("/users/instructor/class", verifyJWT , verifyInstructor, async (req, res) => {
+    // GET instructor classes by email
+    app.get("/users/instructor/class/:email", async (req, res) => {
+      const email = req.params.email;
+
+      const query = { instructorEmail: email };
+      const result = await instructorClassCollection.find(query).toArray();
+
+      res.send(result);
+    });
+
+    //TODO Verify that verifyInstructor,
+    app.post("/users/instructor/class", verifyJWT, async (req, res) => {
       const classInfo = req.body;
       const result = await instructorClassCollection.insertOne(classInfo);
       res.send(result);
     });
 
-    app.get("/users/instructor/:email", verifyJWT,  async (req, res) => {
+    app.get("/users/instructor/:email", verifyJWT, async (req, res) => {
       const email = req.params.email;
 
       if (req.decoded.email !== email) {
@@ -141,8 +194,8 @@ async function run() {
         }
       }
     });
-
-    app.patch("/users/instructors/:id", verifyJWT,verifyAdmin, async (req, res) => {
+    //TODO Verify that
+    app.patch("/users/instructors/:id", async (req, res) => {
       const instructorsId = req.params.id;
       const filter = { _id: new ObjectId(instructorsId) };
 
