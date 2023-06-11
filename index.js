@@ -10,12 +10,31 @@ const jwt = require("jsonwebtoken");
 app.use(cors());
 app.use(express.json());
 
+const verifyJWT = (req, res, next) => {
+  const authentication = req.headers.authentication;
+  if (!authentication) {
+    return res
+      .status(401)
+      .send({ error: true, message: "unauthorized access" });
+  }
 
+  const token = authentication.split(" ")[1];
+
+  // verify a token symmetric
+  jwt.verify(token, process.env.S_TOKEN_JWT, (err, decoded) => {
+    if (err) {
+      return res
+        .status(401)
+        .send({ error: true, message: "unauthorized access" });
+    }
+
+    req.decoded = decoded;
+    next();
+  });
+};
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.USER_NAME}:${process.env.MGO_USER_PASS}@playacademy.z9xxo8h.mongodb.net/?retryWrites=true&w=majority`;
-
-
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -26,8 +45,6 @@ const client = new MongoClient(uri, {
   },
 });
 
-
-
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
@@ -37,9 +54,34 @@ async function run() {
       .db("PowerPlayUsers")
       .collection("manageMdb");
 
+
+    //JWT Authentication
+ 
+app.post("/jwt", (req, res) => {
+   const user = req.body;
+   const token = jwt.sign(user, process.env.S_TOKEN_JWT, {
+     expiresIn: "1h",
+   });
+   res.send({ token });
+ });
+
+
+   const verifyAdmin = async (req, res, next) => {
+     const email = req.decoded.email;
+     const query = { email: email };
+     const user = await manageUsersCollection.findOne(query);
+
+     if (user?.role !== "admin") {
+       return res.status(403).send({ error: true, message: "FORBIDDEN user" });
+     }
+     next();
+   };
+
+
+
     // users  section
 
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyJWT, verifyAdmin, async (req, res) => {
       const result = await manageUsersCollection.find().toArray();
       res.send(result);
     });
@@ -75,7 +117,25 @@ async function run() {
       res.send(result);
     });
 
+
     //admin
+
+app.get("/users/admin/:email", verifyJWT, async (req, res) => {
+  const email = req.params.email;
+
+  if (req.decoded.email !== email) {
+    res.send({ admin: false });
+  } else {
+    try {
+      const query = { email: email };
+      const user = await manageUsersCollection.findOne(query);
+      const result = { admin: user?.role === "admin" };
+      res.send(result);
+    } catch (error) {
+      res.status(500).send({ error: true, message: "Internal server error" });
+    }
+  }
+});
 
     app.patch("/users/admin/:id", async (req, res) => {
       const instructorsId = req.params.id;
@@ -90,8 +150,6 @@ async function run() {
       res.send(result);
     });
 
-
-
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
@@ -104,13 +162,10 @@ async function run() {
 }
 run().catch(console.dir);
 
-
-
-app.get('/' , async (req, res) => {
-    res.send("Welcome to the PowerPlayAcademy server side!");
+app.get("/", async (req, res) => {
+  res.send("Welcome to the PowerPlayAcademy server side!");
 });
 
-
-app.listen(port,(req, res) => {
-    console.log(`power play server listening on port ${port}`);
+app.listen(port, (req, res) => {
+  console.log(`power play server listening on port ${port}`);
 });
