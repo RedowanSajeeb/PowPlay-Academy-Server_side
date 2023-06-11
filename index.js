@@ -4,6 +4,8 @@ const cors = require("cors");
 require("dotenv").config();
 const port = process.env.PORT || 4000;
 
+const jwt = require("jsonwebtoken");
+
 // middleware//
 app.use(cors());
 app.use(express.json());
@@ -87,6 +89,8 @@ async function run() {
       const result = await manageUsersCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
+
+
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
