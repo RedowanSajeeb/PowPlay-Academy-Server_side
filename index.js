@@ -50,9 +50,8 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
-    const manageUsersCollection = client
-      .db("PowerPlayUsers")
-      .collection("manageMdb");
+    const manageUsersCollection = client.db("PowerPlayUsers").collection("manageMdb");
+    const instructorClassCollection = client.db("InstructorPowerPlay").collection("ClassMdb");
 
 
     //JWT Authentication
@@ -102,9 +101,36 @@ app.post("/jwt", (req, res) => {
       res.send(result);
     });
 
-    //Instructors
+    //Instructors-class
 
-    app.patch("/users/instructors/:id", async (req, res) => {
+
+app.post("/users/instructor/class", async (req, res) => {
+
+    const classInfo = req.body;
+       const result = await instructorClassCollection.insertOne(classInfo);
+       res.send(result);
+
+});
+
+
+app.get("/users/instructor/:email", verifyJWT, async (req, res) => {
+  const email = req.params.email;
+
+  if (req.decoded.email !== email) {
+    res.send({ instructor: false });
+  } else {
+    try {
+      const query = { email: email };
+      const user = await manageUsersCollection.findOne(query);
+      const result = { instructor: user?.role === "instructor" };
+      res.send(result);
+    } catch (error) {
+      res.status(500).send({ error: true, message: "Internal server error" });
+    }
+  }
+});
+
+app.patch("/users/instructors/:id", async (req, res) => {
       const instructorsId = req.params.id;
       const filter = { _id: new ObjectId(instructorsId) };
 
@@ -119,7 +145,6 @@ app.post("/jwt", (req, res) => {
 
 
     //admin
-
 app.get("/users/admin/:email", verifyJWT, async (req, res) => {
   const email = req.params.email;
 
