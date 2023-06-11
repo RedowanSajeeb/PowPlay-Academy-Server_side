@@ -142,7 +142,7 @@ async function run() {
       }
     });
 
-    app.patch("/users/instructors/:id", async (req, res) => {
+    app.patch("/users/instructors/:id", verifyJWT,verifyAdmin, async (req, res) => {
       const instructorsId = req.params.id;
       const filter = { _id: new ObjectId(instructorsId) };
 
