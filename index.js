@@ -118,7 +118,7 @@ async function run() {
 
     //home page 2 Section// Popular Classes Section
     //todo Classes page
-    app.get("classes/all", async (req, res) => {
+    app.get("/classes/all", async (req, res) => {
       const result = await instructorClassCollection.find().toArray();
       res.send(result);
     });
