@@ -119,6 +119,13 @@ async function run() {
     //home page 2 Section// Popular Classes Section
     //todo Classes page
     app.get("/classes/all", async (req, res) => {
+      const query = { Status: "approved" };
+      const result = await instructorClassCollection.find(query).toArray();
+      res.send(result);
+    })
+
+    app.get("/classes/all/manage/classes", async (req, res) => {
+ 
       const result = await instructorClassCollection.find().toArray();
       res.send(result);
     });
