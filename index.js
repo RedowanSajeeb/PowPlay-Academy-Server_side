@@ -203,6 +203,32 @@ async function run() {
       res.send(result);
     });
 
+    //admin feedback to instructor
+
+app.patch("/admin/feedback/:id", async (req, res) => {
+  try {
+    const feedback = req.body;
+    const feedbackID = req.params.id;
+    const filter = { _id: new ObjectId(feedbackID) };
+    const options = { upsert: true };
+    const updateDoc = {
+      $set: {
+        feedback: feedback,
+      },
+    };
+    const result = await instructorClassCollection.updateOne(
+      filter,
+      updateDoc,
+      options
+    );
+    res.send(result);
+  } catch (error) {
+    console.log("Error while updating feedback:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+
     // GET instructor classes by email
     app.get("/users/instructor/class/:email", async (req, res) => {
       const email = req.params.email;
