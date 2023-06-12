@@ -123,12 +123,11 @@ async function run() {
       res.send(result);
     });
 
-app.get("/classes/role/instructor", async (req, res) => {
-
-  const query = { role: { $in: ["admin", "instructor"] } };
-  const result = await manageUsersCollection.find(query).toArray();
-  res.send(result);
-});
+    app.get("/classes/role/instructor", async (req, res) => {
+      const query = { role: { $in: ["admin", "instructor"] } };
+      const result = await manageUsersCollection.find(query).toArray();
+      res.send(result);
+    });
 
     app.get("/users/popular-class", async (req, res) => {
       // const query = { runtime: { $lt: 15 } };
@@ -164,13 +163,45 @@ app.get("/classes/role/instructor", async (req, res) => {
       res.send(result);
     });
 
-    //Instructors-class
+    //Instructors-class-Admin
 
-     app.get("/classes/all/instructors", async (req, res) => {
-       const result = await instructorClassCollection.find().toArray();
-       res.send(result);
-     });
+    app.get("/classes/all/instructors", async (req, res) => {
+      const result = await instructorClassCollection.find().toArray();
+      res.send(result);
+    });
 
+    // handlerDenyd-handlerApproved
+    app.patch("/class/approved/:id", async (req, res) => {
+      const adminClassApproved = req.params.id;
+      const filter = { _id: new ObjectId(adminClassApproved) };
+
+      const updateDoc = {
+        $set: {
+          Status: "approved",
+        },
+      };
+      const result = await instructorClassCollection.updateOne(
+        filter,
+        updateDoc
+      );
+      res.send(result);
+    });
+    app.patch("/class/denied/:id", async (req, res) => {
+      const deniedClassApproved = req.params.id;
+      const filter = { _id: new ObjectId(deniedClassApproved) };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          Status: "denied",
+        },
+      };
+      const result = await instructorClassCollection.updateOne(
+        filter,
+        updateDoc,
+        options
+      );
+      res.send(result);
+    });
 
     // GET instructor classes by email
     app.get("/users/instructor/class/:email", async (req, res) => {
@@ -253,7 +284,6 @@ app.get("/classes/role/instructor", async (req, res) => {
       const result = await manageUsersCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
-
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
