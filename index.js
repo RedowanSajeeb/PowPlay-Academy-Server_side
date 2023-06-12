@@ -123,6 +123,13 @@ async function run() {
       res.send(result);
     });
 
+app.get("/classes/role/instructor", async (req, res) => {
+
+  const query = { role: { $in: ["admin", "instructor"] } };
+  const result = await manageUsersCollection.find(query).toArray();
+  res.send(result);
+});
+
     app.get("/users/popular-class", async (req, res) => {
       // const query = { runtime: { $lt: 15 } };
       //  const options = {
