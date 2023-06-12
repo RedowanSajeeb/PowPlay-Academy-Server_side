@@ -2,6 +2,7 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 require("dotenv").config();
+const stripe = require("stripe")(process.env.Payment_Security_Key);
 const port = process.env.PORT || 4000;
 
 const jwt = require("jsonwebtoken");
@@ -122,10 +123,9 @@ async function run() {
       const query = { Status: "approved" };
       const result = await instructorClassCollection.find(query).toArray();
       res.send(result);
-    })
+    });
 
     app.get("/classes/all/manage/classes", async (req, res) => {
- 
       const result = await instructorClassCollection.find().toArray();
       res.send(result);
     });
@@ -212,29 +212,28 @@ async function run() {
 
     //admin feedback to instructor
 
-app.patch("/admin/feedback/:id", async (req, res) => {
-  try {
-    const feedback = req.body;
-    const feedbackID = req.params.id;
-    const filter = { _id: new ObjectId(feedbackID) };
-    const options = { upsert: true };
-    const updateDoc = {
-      $set: {
-        feedback: feedback,
-      },
-    };
-    const result = await instructorClassCollection.updateOne(
-      filter,
-      updateDoc,
-      options
-    );
-    res.send(result);
-  } catch (error) {
-    console.log("Error while updating feedback:", error);
-    res.status(500).send("Internal Server Error");
-  }
-});
-
+    app.patch("/admin/feedback/:id", async (req, res) => {
+      try {
+        const feedback = req.body;
+        const feedbackID = req.params.id;
+        const filter = { _id: new ObjectId(feedbackID) };
+        const options = { upsert: true };
+        const updateDoc = {
+          $set: {
+            feedback: feedback,
+          },
+        };
+        const result = await instructorClassCollection.updateOne(
+          filter,
+          updateDoc,
+          options
+        );
+        res.send(result);
+      } catch (error) {
+        console.log("Error while updating feedback:", error);
+        res.status(500).send("Internal Server Error");
+      }
+    });
 
     // GET instructor classes by email
     app.get("/users/instructor/class/:email", async (req, res) => {
@@ -317,6 +316,34 @@ app.patch("/admin/feedback/:id", async (req, res) => {
       const result = await manageUsersCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
+
+
+
+    //Create Payment Intent for stripe!!
+
+    app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+      const { price } = req.body;
+
+      const amount = price * 100;
+
+      // Create a PaymentIntent with the order amount and currency
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        // automatic_payment_methods: {
+        //   enabled: true,
+        // },
+        payment_method_types: ["card"],
+      });
+
+      return res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
+
+
+
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
