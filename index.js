@@ -2,7 +2,8 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 require("dotenv").config();
-const stripe = require("stripe")(process.env.Payment_Security_Key);
+const stripe = require("stripe")(process.env.PAYMENT_SECURITY_KEY);
+
 const port = process.env.PORT || 4000;
 
 const jwt = require("jsonwebtoken");
@@ -49,7 +50,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     const manageUsersCollection = client
       .db("PowerPlayUsers")
@@ -57,6 +58,17 @@ async function run() {
     const instructorClassCollection = client
       .db("InstructorPowerPlay")
       .collection("ClassMdb");
+
+    const userSelectClassCollection = client
+      .db("SelectUserPowerPlay")
+      .collection("ClassSelect");
+
+    const paymentUserCollection = client
+      .db("SelectUserPowerPlay")
+      .collection("PaymentUser");
+    const paymentSuccessfullyCollection = client
+      .db("SelectUserPowerPlay")
+      .collection("PaymentSuccessfully");
 
     //JWT Authentication
 
@@ -125,6 +137,27 @@ async function run() {
       res.send(result);
     });
 
+    app.patch("/classes/all-up", async (req, res) => {
+      const classId = req.body.classId; // Access classId from req.body
+      // console.log(classId);
+
+      const query = { _id: new ObjectId(classId) };
+      const update = {
+        $inc: { availableSeats: -1, enrolledStudents: 1 }, // Increment enrolledStudents by 1 and decrement availableSeats by 1
+      };
+      const options = { upsert: true };
+      const result = await instructorClassCollection.updateOne(
+        query,
+        update,
+        options
+      );
+
+      // Retrieve the updated document after the update
+      const updatedDocument = await instructorClassCollection.findOne(query);
+
+      res.send({ result, updatedDocument });
+    });
+
     app.get("/classes/all/manage/classes", async (req, res) => {
       const result = await instructorClassCollection.find().toArray();
       res.send(result);
@@ -137,19 +170,51 @@ async function run() {
     });
 
     app.get("/users/popular-class", async (req, res) => {
-      // const query = { runtime: { $lt: 15 } };
-      //  const options = {
-      //    // sort returned documents in ascending order by title (A->Z)
-      //    sort: { title: 1 },
-      //    // Include only the `title` and `imdb` fields in each returned document
-      //    projection: { _id: 0, title: 1, imdb: 1 },
-      //  };
-
-      const result = await instructorClassCollection.find().limit(6).toArray();
+      const query = { Status: "approved" };
+      const result = await instructorClassCollection
+        .find(query)
+        .sort({ enrolledStudents: -1 }) // Sort by enrolledStudents in descending order
+        .limit(6)
+        .toArray();
 
       res.send(result);
     });
 
+    // select/class
+
+    app.get("/select/classes", verifyJWT, async (req, res) => {
+      const email = req.query.email;
+      if (!email) {
+        res.send([]);
+      }
+
+      const decodedEmail = req.decoded.email;
+      if (email !== decodedEmail) {
+        return res
+          .status(401)
+          .send({ error: true, message: "unauthorized access" });
+      }
+
+      const query = { email: email };
+      const result = await userSelectClassCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.post("/select/classes", async (req, res) => {
+      const select = req.body;
+      const result = await userSelectClassCollection.insertOne(select);
+      res.send(result);
+    });
+    // Selected class remove
+
+    app.delete("/select/classes", async (req, res) => {
+      const classId = req.query.classId;
+      const query = { selectID: classId };
+      const result = await userSelectClassCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    // ---------------
     app.get("/users/popular/instructor", async (req, res) => {
       const options = {
         projection: {
@@ -317,32 +382,75 @@ async function run() {
       res.send(result);
     });
 
-
-
-    //Create Payment Intent for stripe!!
-
+    // Create a PaymentIntent
     app.post("/create-payment-intent", verifyJWT, async (req, res) => {
       const { price } = req.body;
 
-      const amount = price * 100;
+      // Validate the price
+      if (!Number.isFinite(price) || price < 1) {
+        return res.status(400).json({ error: "Invalid price value" });
+      }
+      const fPrice = price.toFixed(2);
+      const amount = fPrice * 100;
 
       // Create a PaymentIntent with the order amount and currency
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: amount,
-        currency: "usd",
-        // automatic_payment_methods: {
-        //   enabled: true,
-        // },
-        payment_method_types: ["card"],
-      });
+      try {
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amount,
+          currency: "usd",
+          payment_method_types: ["card"],
+        });
 
-      return res.send({
-        clientSecret: paymentIntent.client_secret,
-      });
+        return res.send({
+          clientSecret: paymentIntent.client_secret,
+        });
+      } catch (error) {
+        console.error("Error creating payment intent:", error);
+        return res
+          .status(500)
+          .json({ error: "Failed to create payment intent" });
+      }
     });
 
+    //payment history
 
+    app.get("/payments/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const sort = { created: -1 }; // Sort by  descending order
+      const result = await paymentUserCollection
+        .find(query)
+        .sort(sort)
+        .toArray();
+      res.send(result);
+    });
 
+    //PaymentIntent history saving api!
+    app.post("/payments", verifyJWT, async (req, res) => {
+      const paymentInfo = req.body;
+      const result = await paymentUserCollection.insertOne(paymentInfo);
+      res.send(result);
+    });
+
+    //  successfully payment
+
+    app.post("/payments/successfully", verifyJWT, async (req, res) => {
+      const successfullyData = req.body;
+      const result = await paymentSuccessfullyCollection.insertOne(
+        successfullyData
+      );
+      res.send(result);
+    });
+
+    app.get("/payments/successfully/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const result = await paymentSuccessfullyCollection.find(query).toArray();
+      res.send(result);
+    });
+    //  successfully payment
+
+    // Selected class remove
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
